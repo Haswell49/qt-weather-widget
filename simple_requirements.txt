@@ -1,0 +1,7 @@
+pyside6
+requests
+python-dotenv
+
+# python -m pip install <название_пакета>
+
+# python -m pip freeze > requirements.txt
