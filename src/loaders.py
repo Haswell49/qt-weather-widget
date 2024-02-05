@@ -2,30 +2,42 @@ import json
 
 import requests
 
+from src import abstract
+from src.abstract import Observer
 from src.config import OPEN_WEATHER_API_KEY
 from src.models import Report
 
 
-class ReportDownloader:
-    _data: dict
+class ReportDownloader(abstract.Observable):
+    _report: Report | None
+
+    _observers: set[Observer]
 
     URI_TEMPLATE = "https://api.openweathermap.org/data/2.5/weather?" \
                    "units=metric&lat={0}&lon={1}&appid={2}"
 
     def __init__(self):
-        self._data = dict()
+        self._report = None
 
-    def get_report(self, coord: tuple[float, float]) -> Report | None:
-        data = self._download(coord)
+        self._observers = set()
 
-        if self._data == data:
+    def download_report(self, coord: tuple[float, float]):
+        data = self._download_data(coord)
+        report = Report.from_open_weather(data)
+
+        if self._report == report:
             return None
 
-        self._data = data
+        self._notify(report)
+        self._report = report
 
-        return Report.from_open_weather(self._data)
+    def add_observer(self, observer: Observer):
+        self._observers.add(observer)
 
-    def _download(self, coord: tuple[float, float]) -> dict | None:
+    def remove_observer(self, observer: Observer):
+        self._observers.remove(observer)
+
+    def _download_data(self, coord: tuple[float, float]) -> dict | None:
         uri = self.URI_TEMPLATE.format(*coord, OPEN_WEATHER_API_KEY)
         response = requests.get(uri)
 
@@ -35,3 +47,7 @@ class ReportDownloader:
         data = json.loads(response.content)
 
         return data
+
+    def _notify(self, data: Report):
+        for observer in self._observers:
+            observer.update_state(data)

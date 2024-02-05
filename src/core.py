@@ -35,11 +35,10 @@ class Application(QApplication):
 
         self._report_downloader = report_downloader
 
+    def subscribe_labels(self, *labels):
+        for label in labels:
+            self._report_downloader.add_observer(label)
+
     def update(self):
-        weather_report = self._report_downloader.get_report(
+        self._report_downloader.download_report(
             (54.7116095, 20.46453))
-
-        if not weather_report:
-            return
-
-        self._main_widget.update_ui(*weather_report.to_tuple())

@@ -1,63 +1,34 @@
+from typing import Callable
+
 from PySide6 import QtCore
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, \
     QPushButton
 
+from src import abstract
+from src.models import Report
 
-class LocationLabel(QLabel):
-    def update_location(self, location: str):
-        if not location:
+
+class ReportLabel(QLabel, abstract.Observer):
+    _postfix: str
+
+    def __init__(self, source: Callable, *args, postfix: str = "", **kwargs):
+        super(ReportLabel, self).__init__(*args, **kwargs)
+
+        self._source = source
+        self._postfix = postfix
+
+    def update_state(self, report: Report):
+        resource = self._source(report)
+
+        if not self._source(report):
             self.setText("N/A")
             return
 
-        self.setText(location)
-
-
-class TemperatureLabel(QLabel):
-    def update_temperature(self, temperature: float):
-        if not temperature:
-            self.setText("N/A")
-            return
-
-        self.setText(f"{temperature}℃")
-
-
-class WindLabel(QLabel):
-    def update_wind(self, wind_speed: int):
-        if not wind_speed:
-            self.setText("N/A")
-            return
-
-        self.setText(f"{wind_speed} m/s")
-
-
-class HumidityLabel(QLabel):
-    def update_humidity(self, humidity: int):
-        if not humidity:
-            self.setText("N/A")
-            return
-
-        self.setText(f"{humidity} %")
-
-
-class RainLabel(QLabel):
-    def update_rain(self, rain: int):
-        if not rain:
-            self.setText("N/A")
-            return
-
-        self.setText(f"{rain} mm")
+        self.setText(f"{resource}{self._postfix}")
 
 
 class MainWidget(QWidget):
     DEFAULT_WINDOW_SIZE = (320, 180)
-
-    _location_label: LocationLabel
-    _temperature_label: TemperatureLabel
-    _humidity_label: HumidityLabel
-    _rain_label: RainLabel
-    _wind_label: WindLabel
-
-    _refresh_button: QPushButton
 
     def __init__(self, parent_app, *args,
                  window_size: tuple[int, int] = None,
@@ -69,55 +40,47 @@ class MainWidget(QWidget):
         else:
             self.setFixedSize(*self.DEFAULT_WINDOW_SIZE)
 
-        self._location_label = LocationLabel()
-        self._temperature_label = TemperatureLabel()
-        self._humidity_label = HumidityLabel()
-        self._rain_label = RainLabel()
-        self._wind_label = WindLabel()
+        location_label = ReportLabel(lambda report: report.location)
+        temperature_label = ReportLabel(lambda report: report.temperature,
+                                        postfix='°C')
+        humidity_label = ReportLabel(lambda report: report.humidity,
+                                     postfix='%')
+        rain_label = ReportLabel(lambda report: report.rain, postfix="mm")
+        wind_label = ReportLabel(lambda report: report.wind_speed,
+                                 postfix="m/s")
 
-        self._refresh_button = QPushButton()
-        self._refresh_button.setText("Refresh")
+        parent_app.subscribe_labels(location_label, temperature_label,
+                                    humidity_label, rain_label, wind_label)
 
-        self._refresh_button.clicked.connect(parent_app.update)
+        refresh_button = QPushButton()
+        refresh_button.setText("Refresh")
 
-        # self._refresh_button.setEnabled(False)
+        refresh_button.clicked.connect(parent_app.update)
 
         self.layout = build_main_layout(self,
-                                        self._location_label,
-                                        self._temperature_label,
-                                        self._humidity_label,
-                                        self._rain_label,
-                                        self._wind_label,
-                                        self._refresh_button)
-
-    def update_ui(self, location: str,
-                  temperature: float,
-                  humidity: int,
-                  rain: int,
-                  wind_speed: int):
-
-        self._location_label.setText(location)
-        self._temperature_label.update_temperature(temperature)
-        self._humidity_label.update_humidity(humidity)
-        self._rain_label.update_rain(rain)
-        self._wind_label.update_wind(wind_speed)
+                                        location_label,
+                                        temperature_label,
+                                        humidity_label,
+                                        rain_label,
+                                        wind_label,
+                                        refresh_button)
 
 
-def build_location_layout(location_label: LocationLabel):
+def build_location_layout(location_label: ReportLabel):
     layout = QHBoxLayout()
     layout.addWidget(location_label)
     return layout
 
 
-def build_temperature_layout(temperature_label: TemperatureLabel):
+def build_temperature_layout(temperature_label: ReportLabel):
     layout = QHBoxLayout()
     layout.addWidget(temperature_label)
     return layout
 
 
-def build_meteorological_layout(humidity_label: HumidityLabel,
-                                rain_label: RainLabel,
-                                wind_label: WindLabel):
+def build_meteorological_layout(humidity_label: ReportLabel,
+                                rain_label: ReportLabel,
+                                wind_label: ReportLabel):
     layout = QHBoxLayout()
     layout.addWidget(humidity_label, alignment=QtCore.Qt.AlignCenter)
     layout.addWidget(rain_label, alignment=QtCore.Qt.AlignCenter)
@@ -125,11 +88,11 @@ def build_meteorological_layout(humidity_label: HumidityLabel,
     return layout
 
 
-def build_main_layout(parent_widget: QWidget, location_label: LocationLabel,
-                      temperature_label: TemperatureLabel,
-                      humidity_label: HumidityLabel,
-                      rain_label: RainLabel,
-                      wind_label: WindLabel,
+def build_main_layout(parent_widget: QWidget, location_label: ReportLabel,
+                      temperature_label: ReportLabel,
+                      humidity_label: ReportLabel,
+                      rain_label: ReportLabel,
+                      wind_label: ReportLabel,
                       refresh_button: QPushButton):
     main_layout = QVBoxLayout(parent_widget)
 

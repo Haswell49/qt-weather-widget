@@ -9,9 +9,27 @@ class Report:
     _rain: int
     _wind_speed: int
 
-    def to_tuple(self) -> tuple:
-        return (self._location, self._temperature, self._humidity,
-                self._rain, self._wind_speed)
+    def __new__(cls, *args, **kwargs):
+        instance = super(Report, cls).__new__(cls)
+
+        cls._generate_properties()
+
+        return instance
+
+    # Generates properties from class fields
+    @classmethod
+    def _generate_properties(cls):
+        cls.location = property(lambda self: self._location)
+        cls.temperature = property(lambda self: self._temperature)
+        cls.humidity = property(lambda self: self._humidity)
+        cls.rain = property(lambda self: self._rain)
+        cls.wind_speed = property(lambda self: self._wind_speed)
+
+    def __eq__(self, other):
+        if not other:
+            return False
+
+        return self.__dict__ == other.__dict__
 
     @classmethod
     def from_open_weather(cls, data: dict):
